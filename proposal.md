@@ -1,7 +1,7 @@
 # Proposal: Self-Evolving Runtime
 
-**Author:** Your Name  
-**Date:** Jan 19, 2026  
+**Author:** Your Name
+**Date:** Jan 19, 2026
 **Status:** Concept Proposal (Pre-Implementation)
 
 ---
@@ -183,7 +183,7 @@ Execution interface:
 fn run_binary(binary_id: &str, input_json: &str) -> Output;
 ```
 
-**Rationale:**  
+**Rationale:**
 Binaries provide **fast execution**, **consistent behavior**, and **low inference cost** after initial creation.
 
 ---
@@ -199,7 +199,7 @@ Mutation consists of:
 5. fingerprint binary
 6. persist as new version
 
-**Rationale:**  
+**Rationale:**
 Mutation allows **incremental specialization** without rewriting from scratch.
 
 ---
@@ -212,7 +212,7 @@ Retrieval pipeline:
 2. cosine similarity search over tool embeddings
 3. return top-K candidates
 
-**Rationale:**  
+**Rationale:**
 Semantic recall mimics human “nearest skill” reasoning.
 
 ---
@@ -226,7 +226,7 @@ run_binary(binary_id, input_json)
 mutate_binary(parent_id, task_description)
 ```
 
-**Rationale:**  
+**Rationale:**
 Allows the model to decide:
 
 - when to execute,
@@ -262,7 +262,7 @@ Metrics tracked include:
 - domain affinity
 - lineage relationships
 
-**Rationale:**  
+**Rationale:**
 Metrics inform:
 
 - pruning (optional future),
@@ -372,6 +372,23 @@ Tools are stored as versioned skill artifacts:
   embedding.vec
 ```
 
+Where `meta.json` includes:
+
+```json
+{
+  "tool_id": "csv_to_json",
+  "version": "a1b2c3d4",
+  "parent": null,
+  "summary": "Converts CSV input to JSON output",
+  "fingerprint": "sha256:...",
+  "metrics": {
+    "usage_count": 42,
+    "test_pass_rate": 1.0,
+    "avg_latency_ms": 12
+  }
+}
+```
+
 ### 12.3 Tool API Surface
 
 The runtime exposes a minimal API to the LLM:
@@ -399,4 +416,18 @@ fn solve(task):
 ```
 
 This describes the system being built in practical terms rather than conceptual ones.
+
+---
+
+## 13. Implementation Roadmap
+
+- [ ] Initialize workspace + storage layer
+- [ ] WASM execution engine
+- [ ] Embedding + vector search
+- [ ] OpenAI tool calling integration
+- [ ] Code generation + TDD mutation
+- [ ] Tool persistence + versioning
+- [ ] CLI demonstration
+- [ ] Web UI (optional)
+- [ ] Deployment + docs
 
