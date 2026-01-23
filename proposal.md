@@ -1,26 +1,44 @@
-# Proposal: Self-Evolving Runtime
+# Self-Evolving Agent Runtime
 
-**Author:** Your Name
-**Date:** Jan 19, 2026
-**Status:** Concept Proposal (Pre-Implementation)
+**Author:** Ben Sinclair  
+**Date:** January 2026  
+**Status:** Working Prototype
 
 ---
 
 ## 1. Overview
 
-This document proposes a **Self-Evolving Runtime** for AI agents.
+The **Self-Evolving Agent Runtime** enables AI agents to accumulate executable skills over time.
+
+### The Problem
+
+Agents struggle to choose the right tool when given too many options. To address this, people have started building coding agents with a minimal toolset — agents that write code on-the-fly to solve problems.
+
+But this introduces a new issue: **the code is ephemeral**. The agent might solve the same problem differently each time, turning what should be a deterministic operation into something probabilistic.
+
+### The Solution
+
+This runtime gives the coding agent a way to **persist and reuse** its code:
+
+1. When the agent writes code that works, it's compiled to WASM and stored as a **capability**
+2. Next time a similar task arrives, the agent can **run the existing capability** (deterministic) or **mutate it** to create a variant
+3. As capabilities accumulate, the agent faces tool overload again — so we use **vector similarity search** to surface only the most relevant capabilities for each task
+
+This is essentially **RAG for tools**: instead of dumping all capabilities into the context, we embed the task and retrieve only the nearest matches.
+
+The result: an agent that **learns skills over time**, reuses proven solutions, and stays focused on relevant capabilities.
+
+### Core Capabilities
 
 The runtime allows language models to:
 
-- **Generate** executable code (initial tools)
-- **Execute** compiled binaries safely (via WASM)
-- **Evaluate** behavior through tests
-- **Mutate** code to improve or specialize it
-- **Store** binaries, tests, and metadata persistently
-- **Reuse** previous binaries instead of regenerating them
-- **Retrieve** binaries via semantic search for new tasks
+- **Execute** compiled WASM binaries safely via Wasmtime
+- **Retrieve** relevant capabilities via semantic embeddings
+- **Mutate** existing capabilities to create specialized variants
+- **Persist** capabilities for reuse across sessions
+- **Learn** from failures by deprecating broken capabilities
 
-The intent is to enable **persistent, evolving, executable capabilities** rather than one-off prompt-based behavior.
+This creates **persistent, evolving, executable capabilities** rather than one-off prompt-based behavior.
 
 ---
 
@@ -44,7 +62,7 @@ By contrast, humans learn through **procedural refinement**:
 4. store the new skill for next time,
 5. recall and reuse skills in future.
 
-This proposal introduces a runtime that mirrors that behavior, enabling agents to **retain capabilities, specialize with use, and evolve over time**.
+This runtime mirrors that behavior, enabling agents to **retain capabilities, specialize with use, and evolve over time**.
 
 ---
 
@@ -65,7 +83,7 @@ These goals reflect a shift from **stateless prompting** to **stateful procedura
 
 ## 4. Rationale for Design Decisions
 
-### **4.1 Why Executable Binaries Instead of Text or Prompts?**
+### 4.1 Why Executable Binaries Instead of Text or Prompts?
 
 Generated code that only exists in context:
 
@@ -84,9 +102,7 @@ Compiling to binaries (WASM):
 
 This converts code from "ephemeral output" into **persistent capability**.
 
----
-
-### **4.2 Why WASM?**
+### 4.2 Why WASM?
 
 WASM was chosen because it provides:
 
@@ -98,27 +114,7 @@ WASM was chosen because it provides:
 
 Alternative approaches (e.g., Python subprocesses) lack isolation and reproducibility.
 
----
-
-### **4.3 Why Store Tests with Code?**
-
-Tests serve as:
-
-- **specifications**,
-- **behavioral contracts**,
-- **evaluation mechanisms**.
-
-Tests enable:
-
-- mutation validation,
-- regression protection,
-- specialization through failure.
-
-This mirrors **Test-Driven Development** and allows the model to refine code without manual debugging.
-
----
-
-### **4.4 Why Semantic Retrieval Instead of Tool Lists?**
+### 4.3 Why Semantic Retrieval Instead of Tool Lists?
 
 Manually registering tools:
 
@@ -136,102 +132,127 @@ Semantic embeddings allow:
 
 This creates an adaptive skill ecosystem.
 
----
+### 4.4 Why Evolution Through Mutation?
 
-### **4.5 Why Evolution Through Mutation?**
-
-Agents don’t always produce optimal or domain-general tools on first try.
+Agents don't always produce optimal or domain-general tools on first try.
 
 Mutation enables:
 
-- **specialization** (e.g., CSV → JSON with custom delimiter),
-- **domain fitting** (e.g., large dataset optimizations),
-- **feature addition** (e.g., handle missing values),
-- **performance tuning** (latency/space tradeoffs).
+- **specialization** (e.g., get_salary → update_salary),
+- **domain fitting** (e.g., handle new data formats),
+- **feature addition** (e.g., handle edge cases),
+- **error recovery** (e.g., fix broken capabilities).
 
 This resembles human apprenticeship: **try → fail → refine**.
 
 ---
 
-## 5. Runtime Architecture
+## 5. Current Implementation
 
-### **5.1 Tool Artifact Layout**
+### 5.1 Crate Structure
 
-Each tool version is stored as:
+The runtime is split into two crates:
+
+**`se_runtime_core`** — Library crate containing:
+- `AiClient` trait — abstraction over LLM providers
+- `FoundryClient` — Azure OpenAI / Microsoft Foundry implementation
+- `Embedder` trait — abstraction over embedding providers
+- `MicrosoftFoundryEmbedder` — embedding implementation
+- `CapabilityRegistry` — loads capabilities from disk
+- `CapabilityIndex` — semantic similarity search over embeddings
+- `CapabilityRunner` — Wasmtime-based WASM execution with host functions
+
+**`se_runtime_host`** — CLI application containing:
+- `Agent` — main agentic loop with tool calling
+- `MutationAgent` — code generation agent for creating new capabilities
+- `CapabilityStore` — combines registry + index for capability management
+
+### 5.2 Capability Layout
+
+Each capability lives in `capabilities/crates/<name>/`:
 
 ```
-tool_id/
-  versions/
-    <fingerprint>/
-      src/
-      tests/
-      target/wasm32-wasi/release/tool.wasm
-      meta.json
+capabilities/crates/get_salary_details/
+├── Cargo.toml
+├── meta.json
+└── src/
+    └── main.rs
 ```
 
-`meta.json` contains fingerprints, lineage, metrics, summaries, and embeddings.
+The `meta.json` contains:
 
-This makes tools **immutable, inspectable, and reproducible**.
-
----
-
-### **5.2 WASM Execution Layer**
-
-Execution interface:
-
-```rust
-fn run_binary(binary_id: &str, input_json: &str) -> Output;
+```json
+{
+  "id": "get_salary_details",
+  "summary": "Retrieves salary and compensation details for an employee by ID",
+  "binary": "get_salary_details.wasm"
+}
 ```
 
-**Rationale:**
-Binaries provide **fast execution**, **consistent behavior**, and **low inference cost** after initial creation.
-
----
-
-### **5.3 Mutation Engine**
-
-Mutation consists of:
-
-1. clone parent tool
-2. ask LLM to update code + tests
-3. run unit tests
-4. compile to WASM
-5. fingerprint binary
-6. persist as new version
-
-**Rationale:**
-Mutation allows **incremental specialization** without rewriting from scratch.
-
----
-
-### **5.4 Semantic Retrieval Layer**
-
-Retrieval pipeline:
-
-1. embed task description
-2. cosine similarity search over tool embeddings
-3. return top-K candidates
-
-**Rationale:**
-Semantic recall mimics human “nearest skill” reasoning.
-
----
-
-### **5.5 Agent Control Plane (LLM)**
-
-Exposed OpenAI tool functions:
-
-```jsonc
-run_binary(binary_id, input_json)
-mutate_binary(parent_id, task_description)
+Capabilities are compiled to WASM:
+```bash
+cargo build -p get_salary_details --release --target wasm32-wasip1
 ```
 
-**Rationale:**
-Allows the model to decide:
+### 5.3 Host Functions
 
-- when to execute,
-- when to specialize,
-- when to create new variants.
+The `CapabilityRunner` exposes these host functions to WASM capabilities:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `http_get` | `(url_ptr, url_len) -> i32` | HTTP GET, returns response in shared memory |
+| `file_read` | `(path_ptr, path_len) -> i32` | Read file contents |
+| `file_write` | `(path_ptr, path_len, data_ptr, data_len) -> i32` | Write file contents |
+| `current_time_millis` | `() -> i64` | Current Unix timestamp in milliseconds |
+| `current_time_secs` | `() -> i64` | Current Unix timestamp in seconds |
+
+The `capability_common` crate provides safe Rust wrappers for these.
+
+### 5.4 Agent Loop
+
+The main agent exposes two tools to the LLM:
+
+**`run_capability(capability_id, input_json)`**
+- Executes a capability with JSON input
+- Returns JSON output
+- Tracks failures; deprecates after 2 consecutive failures
+
+**`mutate_capability(parent_capability_id, task_description)`**
+- Spawns the mutation agent
+- Clones parent capability
+- Generates new code via LLM
+- Builds and tests the new capability
+- Reloads the capability store
+
+### 5.5 Mutation Agent
+
+The mutation agent is a separate LLM-powered agent with tools:
+
+| Tool | Description |
+|------|-------------|
+| `web_search` | Search the web for documentation/examples |
+| `http_get` | Fetch specific URLs |
+| `read_file` | Read existing capability source code |
+| `write_file` | Write new capability code |
+| `build` | Compile to WASM |
+| `test` | Run the capability with test input |
+| `rustc_explain` | Get detailed Rust error explanations |
+| `complete` | Mark task as done (requires passing build + test) |
+
+The agent follows a structured workflow:
+1. Read existing similar capabilities for patterns
+2. Write the new capability code
+3. Build and fix any compiler errors
+4. Test with sample input
+5. Complete when output is correct
+
+### 5.6 Semantic Retrieval
+
+When a task arrives:
+1. The task is embedded using the embedder
+2. Cosine similarity is computed against all capability embeddings
+3. Top-K nearest capabilities are returned to the agent
+4. The agent decides which to run or whether to mutate
 
 ---
 
@@ -239,195 +260,66 @@ Allows the model to decide:
 
 Typical flow for solving a task:
 
-1. user provides task + input
-2. runtime finds relevant tools
-3. LLM attempts execution via `run_binary`
-4. if insufficient, LLM triggers `mutate_binary`
-5. new binary compiled + stored
-6. usage metrics updated
-7. final answer returned
+1. User provides natural-language task
+2. Runtime embeds task and finds nearest capabilities
+3. Agent receives task + capability summaries
+4. Agent calls `run_capability` to execute existing capability
+5. If no suitable capability exists, agent calls `mutate_capability`
+6. Mutation agent generates, builds, and tests new capability
+7. Capability store reloads with new capability
+8. Agent runs new capability and returns result
 
-This forms a **self-improving loop**.
-
----
-
-## 7. Metrics & Evaluation
-
-Metrics tracked include:
-
-- test pass/fail counts
-- usage frequency
-- execution latency
-- task success rates
-- domain affinity
-- lineage relationships
-
-**Rationale:**
-Metrics inform:
-
-- pruning (optional future),
-- parent selection,
-- trustworthiness,
-- specialization quality.
+This forms a **self-improving loop** where capabilities accumulate over time.
 
 ---
 
-## 8. MVP Scope
+## 7. Current Capabilities
 
-Initial implementation will support:
+The runtime includes these employee data capabilities as examples:
 
-- Rust → WASM toolchain
-- unit tests for evaluation
-- linear scan embeddings
-- local filesystem storage
-- OpenAI-driven mutation
-- manual task submission (CLI or HTTP)
+| Capability | Type | Description |
+|------------|------|-------------|
+| `get_salary_details` | GET | Employee salary and compensation |
+| `get_hr_records` | GET | HR records and employment info |
+| `get_car_details` | GET | Company car information |
+| `get_family_details` | GET | Employee family members |
+| `get_emergency_contacts` | GET | Emergency contact information |
+| `get_leave_balance` | GET | PTO and leave balances |
+| `get_benefits_info` | GET | Benefits enrollment |
+| `get_performance_reviews` | GET | Performance review history |
+| `get_outlook_calendar` | GET | Calendar events (mock) |
+| `get_employee_profile` | GET | Basic employee profile |
+| `update_employee_car_details` | UPDATE | Modify car information |
+| `update_employee_salary` | UPDATE | Modify salary details |
 
-This is intentionally minimal but functional.
-
----
-
-## 9. Out of Scope (Initial)
-
-Excluded initially:
-
-- distributed skill sharing
-- multi-language toolchains
-- performance benchmarking
-- oracle evaluators
-- automated pruning/merging
-- security policy layers
-- hosting marketplace
-
-These can be future phases.
+All capabilities share an `employee_database.json` file for data persistence.
 
 ---
 
-## 10. Expected Outcomes
+## 8. Implementation Status
 
-The runtime will enable agents that:
+### Completed
 
-- **persist** capabilities
-- **specialize** with practice
-- **reuse** instead of regenerate
-- **evolve** based on demand
-- **reduce inference cost**
-- **retain skills across sessions**
-- **learn from user instruction**
+- [x] WASM execution via Wasmtime
+- [x] Embedding + semantic similarity search
+- [x] LLM tool-calling integration (Azure OpenAI / Foundry)
+- [x] Mutation agent for capability generation
+- [x] Host functions (HTTP, file I/O, time)
+- [x] Capability deprecation on repeated failures
+- [x] CLI interface for task input
+- [x] Example capabilities (employee data domain)
 
-This shifts agents from **stateless prediction → Stateful procedural competence**.
+### Future Work
 
----
-
-## 11. Licensing & IP
-
-This document establishes authorship and date for public record.
-
-License TBD.
-
----
-
-*End of Proposal*
+- [ ] Capability versioning / genealogy tracking
+- [ ] Multi-language capability support (beyond Rust)
+- [ ] Automated capability pruning
+- [ ] Performance metrics and benchmarking
+- [ ] Web UI for capability management
+- [ ] Distributed capability sharing
 
 ---
 
-## 12. Product Definition — What This Runtime Actually Builds
+## 9. License
 
-The Self-Evolving Runtime is a local or hosted execution environment that enables an LLM to:
-
-1. **Create new executable tools from natural language**
-2. **Execute compiled tools safely via WASM**
-3. **Select existing tools via semantic similarity**
-4. **Mutate existing tools to improve or specialize them**
-5. **Store all tools persistently for future reuse**
-
-### 12.1 Core Runtime Responsibilities
-
-At runtime, the system must:
-
-1. Receive a natural-language task
-2. Embed the task for semantic retrieval
-3. Retrieve similar tools via vector similarity
-4. Expose candidate tools to the LLM
-5. Let the LLM choose to:
-   - `run_binary`
-   - `mutate_binary`
-   - `create_binary`
-6. Build and test new binaries
-7. Fingerprint and store new tool versions
-8. Return outputs to the caller
-
-This forms a closed feedback loop where tools accumulate and evolve over time.
-
-### 12.2 Storage Model
-
-Tools are stored as versioned skill artifacts:
-
-```
-/tools/<tool_id>/<version>/
-  src/
-  tests/
-  binary.wasm
-  meta.json
-  embedding.vec
-```
-
-Where `meta.json` includes:
-
-```json
-{
-  "tool_id": "csv_to_json",
-  "version": "a1b2c3d4",
-  "parent": null,
-  "summary": "Converts CSV input to JSON output",
-  "fingerprint": "sha256:...",
-  "metrics": {
-    "usage_count": 42,
-    "test_pass_rate": 1.0,
-    "avg_latency_ms": 12
-  }
-}
-```
-
-### 12.3 Tool API Surface
-
-The runtime exposes a minimal API to the LLM:
-
-| Function | Purpose |
-|---|---|
-| `list_tools()` | Discover available tools |
-| `run_binary(id, input)` | Execute tool |
-| `mutate_binary(id, task)` | Specialize tool |
-| `create_binary(task)` | Create new tool |
-| `describe_binary(id)` | Read metadata |
-
-### 12.4 Main Control Loop (Pseudo-code)
-
-```
-fn solve(task):
-    embedding = embed(task.desc)
-    candidates = find_similar_tools(embedding)
-    action = llm.decide(task, candidates)
-
-    match action:
-        Run(id, input) -> run_binary(id, input)
-        Mutate(parent, desc) -> solve(task.with_tool(mut(parent, desc)))
-        Create(desc) -> solve(task.with_tool(create(desc)))
-```
-
-This describes the system being built in practical terms rather than conceptual ones.
-
----
-
-## 13. Implementation Roadmap
-
-- [ ] Initialize workspace + storage layer
-- [ ] WASM execution engine
-- [ ] Embedding + vector search
-- [ ] OpenAI tool calling integration
-- [ ] Code generation + TDD mutation
-- [ ] Tool persistence + versioning
-- [ ] CLI demonstration
-- [ ] Web UI (optional)
-- [ ] Deployment + docs
-
+MIT
