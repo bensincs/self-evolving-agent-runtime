@@ -1,0 +1,5 @@
+{
+  "id": "get_family_details",
+  "summary": "Returns employee family member information for benefits and emergency contact purposes.",
+  "binary": "../../target/wasm32-wasip1/release/get_family_details.wasm"
+}

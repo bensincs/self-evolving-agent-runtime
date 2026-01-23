@@ -1,11 +1,15 @@
 // crates/host/src/store.rs
 
+use std::fs;
+use std::path::Path;
+
 use anyhow::Result;
+use serde_json::json;
 
 use se_runtime_core::capability_index::CapabilityIndex;
 use se_runtime_core::capability_registry::CapabilityRegistry;
 use se_runtime_core::embedding::Embedder;
-use se_runtime_core::types::CapabilityRecord;
+use se_runtime_core::types::{CapabilityRecord, CapabilityStatus};
 
 /// Pure state: the capabilities and their similarity index.
 /// This is what evolves over time as the agent creates new capabilities.
@@ -107,6 +111,50 @@ impl CapabilityStore {
         self.index = index;
 
         println!("[STORE] Reloaded {} capabilities", self.capabilities.len());
+        Ok(())
+    }
+
+    /// Mark a capability as deprecated (broken/non-functional).
+    /// Updates both in-memory state and meta.json on disk.
+    pub fn mark_deprecated(
+        &mut self,
+        capabilities_root: &str,
+        capability_id: &str,
+        reason: &str,
+    ) -> Result<()> {
+        // Update in-memory state
+        if let Some(cap) = self.capabilities.iter_mut().find(|c| c.id == capability_id) {
+            cap.status = CapabilityStatus::Deprecated;
+        } else {
+            anyhow::bail!("Capability '{}' not found", capability_id);
+        }
+
+        // Update meta.json on disk
+        let meta_path = Path::new(capabilities_root)
+            .join("crates")
+            .join(capability_id)
+            .join("meta.json");
+
+        if !meta_path.exists() {
+            anyhow::bail!(
+                "meta.json not found for capability '{}' at {}",
+                capability_id,
+                meta_path.display()
+            );
+        }
+
+        let content = fs::read_to_string(&meta_path)?;
+        let mut meta: serde_json::Value = serde_json::from_str(&content)?;
+
+        meta["status"] = json!("deprecated");
+        meta["deprecated_reason"] = json!(reason);
+
+        fs::write(&meta_path, serde_json::to_string_pretty(&meta)?)?;
+
+        println!(
+            "[STORE] Marked '{}' as deprecated: {}",
+            capability_id, reason
+        );
         Ok(())
     }
 }

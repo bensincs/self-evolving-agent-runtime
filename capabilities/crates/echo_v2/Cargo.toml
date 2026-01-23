@@ -1,9 +1,0 @@
-[package]
-name = "echo_v2"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-capability_common.workspace = true
-serde.workspace = true
-serde_json.workspace = true

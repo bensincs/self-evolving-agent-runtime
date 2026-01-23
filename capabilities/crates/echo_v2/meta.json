@@ -1,6 +1,0 @@
-{
-  "binary": "../../target/release/echo_v2",
-  "id": "echo_v2",
-  "status": "active",
-  "summary": "Fetches the current Bitcoin price in USD."
-}

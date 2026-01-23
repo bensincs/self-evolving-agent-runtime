@@ -1,0 +1,5 @@
+{
+  "id": "get_benefits_info",
+  "summary": "Returns employee benefits information including health insurance, dental, vision, 401k, and other perks.",
+  "binary": "../../target/wasm32-wasip1/release/get_benefits_info.wasm"
+}

@@ -1,0 +1,6 @@
+{
+  "binary": "../../target/wasm32-wasip1/release/get_salary_details.wasm",
+  "id": "get_salary_details",
+  "replaced_by": "update_employee_salary",
+  "summary": "Returns employee salary and compensation details including base salary, bonus, stock options, and pay schedule."
+}

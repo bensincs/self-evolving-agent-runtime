@@ -1,0 +1,8 @@
+[package]
+name = "get_outlook_calendar"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+capability_common.workspace = true
+serde.workspace = true

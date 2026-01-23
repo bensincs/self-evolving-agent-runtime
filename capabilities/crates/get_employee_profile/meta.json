@@ -1,0 +1,5 @@
+{
+  "id": "get_employee_profile",
+  "summary": "Returns basic employee profile information including name, email, department, job title, and employee ID.",
+  "binary": "../../target/wasm32-wasip1/release/get_employee_profile.wasm"
+}

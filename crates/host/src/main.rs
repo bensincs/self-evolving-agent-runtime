@@ -26,7 +26,7 @@ fn main() -> Result<()> {
         FoundryClient::from_env_with_deployment_var("FOUNDRY_MUTATION_DEPLOYMENT")
             .or_else(|_| FoundryClient::from_env())?;
 
-    let runner = CapabilityRunner::new(capabilities_root);
+    let runner = CapabilityRunner::new(capabilities_root)?;
 
     // Load capability store (state).
     let mut store = CapabilityStore::load(capabilities_root, &embedder)?;
@@ -57,7 +57,7 @@ fn main() -> Result<()> {
         }
 
         // Find relevant capabilities for this task
-        let (caps_summary, nearest) = store.capabilities_summary_for_task(task, &embedder, 5)?;
+        let (caps_summary, nearest) = store.capabilities_summary_for_task(task, &embedder, 2)?;
         println!("\nNearest capabilities:");
         for (id, score) in &nearest {
             println!("  - {id} (score = {score:.3})");

@@ -1,5 +1,0 @@
-{
-  "id": "echo_rust",
-  "summary": "Echoes back whatever JSON it receives. A template for Rust-based capabilities.",
-  "binary": "../../target/release/echo_rust"
-}

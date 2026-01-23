@@ -20,6 +20,8 @@ pub struct Agent<'a, C: AiClient, M: AiClient, E: Embedder> {
     embedder: &'a E,
     capabilities_root: &'a str,
     max_steps: usize,
+    /// Track failures per capability to avoid repeated deprecation
+    failure_counts: std::collections::HashMap<String, usize>,
 }
 
 impl<'a, C: AiClient, M: AiClient, E: Embedder> Agent<'a, C, M, E> {
@@ -39,6 +41,7 @@ impl<'a, C: AiClient, M: AiClient, E: Embedder> Agent<'a, C, M, E> {
             embedder,
             capabilities_root,
             max_steps: 12,
+            failure_counts: std::collections::HashMap::new(),
         }
     }
 
@@ -131,7 +134,7 @@ impl<'a, C: AiClient, M: AiClient, E: Embedder> Agent<'a, C, M, E> {
         }
     }
 
-    fn handle_run_capability(&self, tc: &ChatToolCall) -> Result<String> {
+    fn handle_run_capability(&mut self, tc: &ChatToolCall) -> Result<String> {
         println!("[TOOL CALL] run_capability");
 
         let args: serde_json::Value = serde_json::from_str(&tc.function.arguments)
@@ -153,14 +156,50 @@ impl<'a, C: AiClient, M: AiClient, E: Embedder> Agent<'a, C, M, E> {
         let cap = self
             .store
             .get_capability(capability_id)
-            .with_context(|| format!("Requested capability_id '{}' not found", capability_id))?;
+            .with_context(|| format!("Requested capability_id '{}' not found", capability_id))?
+            .clone();
 
-        let output = self.runner.run_capability(cap, input_json)?;
+        match self.runner.run_capability(&cap, input_json) {
+            Ok(output) => {
+                // Reset failure count on success
+                self.failure_counts.remove(capability_id);
+                println!("[TOOL OUTPUT]");
+                println!("{output}");
+                Ok(output)
+            }
+            Err(e) => {
+                let error_msg = format!("{}", e);
+                println!("[TOOL ERROR] {}", error_msg);
 
-        println!("[TOOL OUTPUT]");
-        println!("{output}");
+                // Track failures - deprecate after 2 consecutive failures
+                let count = self
+                    .failure_counts
+                    .entry(capability_id.to_string())
+                    .or_insert(0);
+                *count += 1;
 
-        Ok(output)
+                if *count >= 2 {
+                    let deprecation_reason =
+                        format!("Failed {} times. Last error: {}", count, error_msg);
+                    if let Err(dep_err) = self.store.mark_deprecated(
+                        self.capabilities_root,
+                        capability_id,
+                        &deprecation_reason,
+                    ) {
+                        println!(
+                            "[AGENT] Warning: Failed to mark capability as deprecated: {}",
+                            dep_err
+                        );
+                    }
+                }
+
+                // Return error to agent so it can try alternatives
+                Ok(format!(
+                    "ERROR: Capability '{}' failed: {}. Failures: {}/2 before deprecation.",
+                    capability_id, error_msg, count
+                ))
+            }
+        }
     }
 
     fn handle_mutate_capability(&mut self, tc: &ChatToolCall) -> Result<String> {

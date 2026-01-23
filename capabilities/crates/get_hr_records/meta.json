@@ -1,0 +1,5 @@
+{
+  "id": "get_hr_records",
+  "summary": "Returns HR records for an employee including employment history, promotions, disciplinary actions, and certifications.",
+  "binary": "../../target/wasm32-wasip1/release/get_hr_records.wasm"
+}

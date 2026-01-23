@@ -1,6 +1,0 @@
-{
-  "binary": "../../target/release/echo_v1",
-  "id": "echo_v1",
-  "status": "active",
-  "summary": "This capability returns the current server time in ISO 8601 format."
-}
