@@ -1,5 +1,0 @@
-{
-  "id": "get_performance_reviews",
-  "summary": "Returns employee performance review history including ratings, feedback, goals, and development plans.",
-  "binary": "../../target/wasm32-wasip1/release/get_performance_reviews.wasm"
-}

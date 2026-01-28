@@ -1,5 +1,0 @@
-{
-  "id": "get_emergency_contacts",
-  "summary": "Returns employee emergency contact information including primary and secondary contacts with phone numbers and relationships.",
-  "binary": "../../target/wasm32-wasip1/release/get_emergency_contacts.wasm"
-}

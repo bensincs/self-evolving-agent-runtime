@@ -1,5 +1,0 @@
-{
-  "id": "get_car_details",
-  "summary": "Returns employee company car or registered vehicle details including make, model, registration, and parking assignment.",
-  "binary": "../../target/wasm32-wasip1/release/get_car_details.wasm"
-}

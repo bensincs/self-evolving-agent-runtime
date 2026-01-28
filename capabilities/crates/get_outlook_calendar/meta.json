@@ -1,5 +1,0 @@
-{
-  "id": "get_outlook_calendar",
-  "summary": "Returns employee Outlook calendar events including meetings, appointments, and out-of-office blocks.",
-  "binary": "../../target/wasm32-wasip1/release/get_outlook_calendar.wasm"
-}

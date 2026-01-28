@@ -1,0 +1,11 @@
+[package]
+name = "cap1_v7325_v8085"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+capability_common.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

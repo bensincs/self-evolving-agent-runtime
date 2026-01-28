@@ -1,0 +1,5 @@
+{
+  "id": "cap1",
+  "summary": "Add two integers and return their sum.",
+  "binary": "../../target/wasm32-wasip1/release/cap1.wasm"
+}

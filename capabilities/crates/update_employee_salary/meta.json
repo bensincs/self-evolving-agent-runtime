@@ -1,6 +1,0 @@
-{
-  "binary": "../../target/wasm32-wasip1/release/update_employee_salary.wasm",
-  "id": "update_employee_salary",
-  "status": "active",
-  "summary": "Updated employee's salary capability implemented successfully."
-}

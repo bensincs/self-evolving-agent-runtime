@@ -225,6 +225,16 @@ See **[PROPOSAL.md](PROPOSAL.md)** for:
 - Mutation strategy
 - Future directions
 
+## Testing
+
+- Deterministic capability contracts and orchestrator flow: **[TESTING.md](TESTING.md)**
+- Run capability tests inside `capabilities/` workspace:
+  ```bash
+  cd capabilities
+  cargo test -p get_employee_profile -p get_benefits_info -p update_employee_salary -p update_employee_car_details
+  ```
+- Mutation flow: planner → parallel coding/testing agents → host runs `cargo test -p <cap>`
+
 ---
 
 ## License

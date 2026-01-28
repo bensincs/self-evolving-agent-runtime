@@ -1,7 +1,7 @@
 # Self-Evolving Agent Runtime
 
-**Author:** Ben Sinclair  
-**Date:** January 2026  
+**Author:** Ben Sinclair
+**Date:** January 2026
 **Status:** Working Prototype
 
 ---

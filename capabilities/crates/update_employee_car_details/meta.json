@@ -1,6 +1,0 @@
-{
-  "binary": "../../target/wasm32-wasip1/release/update_employee_car_details.wasm",
-  "id": "update_employee_car_details",
-  "status": "active",
-  "summary": "Updated employee car details capability successfully accepts input for car make, model, registration, and parking assignment, updates the employee's car record, and returns a confirmation message."
-}

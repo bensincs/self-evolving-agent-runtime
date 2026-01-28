@@ -15,8 +15,8 @@
         "status": "active"
       },
       "salary": {
-        "base_salary": 400000,
-        "currency": "USD",
+        "base_salary": 998240,
+        "currency": "AED",
         "pay_frequency": "bi-weekly",
         "bonus_target_percent": 15,
         "last_bonus_amount": 18000,

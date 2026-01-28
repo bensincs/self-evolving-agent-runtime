@@ -13,7 +13,9 @@ use std::io::Read;
 
 // ============ Host Function Imports ============
 // These are implemented by the runtime host (CapabilityRunner)
+// Only available when compiling for WASM target
 
+#[cfg(target_arch = "wasm32")]
 #[link(wasm_import_module = "host")]
 extern "C" {
     /// Make an HTTP GET request.
@@ -42,7 +44,51 @@ extern "C" {
     /// content_ptr: pointer to content to write
     /// content_len: length of content to write
     /// Returns: 0 on success, or negative error code
-    fn file_write(path_ptr: *const u8, path_len: i32, content_ptr: *const u8, content_len: i32) -> i32;
+    fn file_write(
+        path_ptr: *const u8,
+        path_len: i32,
+        content_ptr: *const u8,
+        content_len: i32,
+    ) -> i32;
+}
+
+// ============ Native Stubs (for testing) ============
+// These panic at runtime but allow tests to compile
+
+#[cfg(not(target_arch = "wasm32"))]
+unsafe fn http_get(_url_ptr: *const u8, _url_len: i32, _result_ptr: *mut u8) -> i32 {
+    panic!("http_get is only available in WASM runtime")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn current_time_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn current_time_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+unsafe fn file_read(_path_ptr: *const u8, _path_len: i32, _result_ptr: *mut u8) -> i32 {
+    panic!("file_read is only available in WASM runtime")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+unsafe fn file_write(
+    _path_ptr: *const u8,
+    _path_len: i32,
+    _content_ptr: *const u8,
+    _content_len: i32,
+) -> i32 {
+    panic!("file_write is only available in WASM runtime")
 }
 
 // ============ Error Type ============
@@ -148,7 +194,10 @@ pub fn http_get_string(url: &str) -> Result<String, CapabilityError> {
             -6 => "Response buffer too small",
             _ => "Unknown error",
         };
-        return Err(CapabilityError::new(format!("HTTP GET failed: {}", error_msg)));
+        return Err(CapabilityError::new(format!(
+            "HTTP GET failed: {}",
+            error_msg
+        )));
     }
 
     let len = result as usize;
@@ -177,12 +226,26 @@ pub fn http_get_json<T: DeserializeOwned>(url: &str) -> Result<T, CapabilityErro
 
 /// Get the current UTC time as Unix timestamp in milliseconds.
 pub fn utc_now_timestamp_millis() -> i64 {
-    unsafe { current_time_millis() }
+    #[cfg(target_arch = "wasm32")]
+    {
+        unsafe { current_time_millis() }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        current_time_millis()
+    }
 }
 
 /// Get the current UTC time as Unix timestamp in seconds.
 pub fn utc_now_timestamp() -> i64 {
-    unsafe { current_time_secs() }
+    #[cfg(target_arch = "wasm32")]
+    {
+        unsafe { current_time_secs() }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        current_time_secs()
+    }
 }
 
 /// Get the current UTC time as an ISO 8601 formatted string.
@@ -286,7 +349,10 @@ pub fn read_file_string(path: &str) -> Result<String, CapabilityError> {
             -7 => "File too large for buffer",
             _ => "Unknown error",
         };
-        return Err(CapabilityError::new(format!("File read failed: {}", error_msg)));
+        return Err(CapabilityError::new(format!(
+            "File read failed: {}",
+            error_msg
+        )));
     }
 
     let len = result as usize;
@@ -332,7 +398,10 @@ pub fn write_file_string(path: &str, content: &str) -> Result<(), CapabilityErro
             -6 => "Failed to write file",
             _ => "Unknown error",
         };
-        return Err(CapabilityError::new(format!("File write failed: {}", error_msg)));
+        return Err(CapabilityError::new(format!(
+            "File write failed: {}",
+            error_msg
+        )));
     }
 
     Ok(())
@@ -685,7 +754,12 @@ pub struct MedicalInfo {
 impl EmployeeDatabase {
     /// Load the employee database from the JSON file.
     /// Falls back to default data if file doesn't exist or can't be read.
+    ///
+    /// Behavior can be overridden for tests by setting `EMPLOYEE_DB_PATH` env var.
     pub fn load() -> Self {
+        if let Ok(path) = std::env::var("EMPLOYEE_DB_PATH") {
+            return Self::load_from_file(&path).unwrap_or_else(|_| Self::default_database());
+        }
         Self::load_from_file(EMPLOYEE_DB_PATH).unwrap_or_else(|_| Self::default_database())
     }
 
@@ -695,7 +769,12 @@ impl EmployeeDatabase {
     }
 
     /// Save the employee database to the default JSON file.
+    ///
+    /// Behavior can be overridden for tests by setting `EMPLOYEE_DB_PATH` env var.
     pub fn save(&self) -> Result<(), CapabilityError> {
+        if let Ok(path) = std::env::var("EMPLOYEE_DB_PATH") {
+            return self.save_to_file(&path);
+        }
         self.save_to_file(EMPLOYEE_DB_PATH)
     }
 
@@ -711,12 +790,17 @@ impl EmployeeDatabase {
 
     /// Find an employee by ID (mutable).
     pub fn find_employee_mut(&mut self, employee_id: &str) -> Option<&mut Employee> {
-        self.employees.iter_mut().find(|e| e.employee_id == employee_id)
+        self.employees
+            .iter_mut()
+            .find(|e| e.employee_id == employee_id)
     }
 
     /// Get all employee IDs.
     pub fn employee_ids(&self) -> Vec<&str> {
-        self.employees.iter().map(|e| e.employee_id.as_str()).collect()
+        self.employees
+            .iter()
+            .map(|e| e.employee_id.as_str())
+            .collect()
     }
 
     /// Add a new employee to the database.
@@ -1470,4 +1554,3 @@ impl EmployeeDatabase {
         }
     }
 }
-

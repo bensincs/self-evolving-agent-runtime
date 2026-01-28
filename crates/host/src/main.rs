@@ -1,5 +1,4 @@
-mod agent;
-mod mutation_agent;
+mod agents;
 mod store;
 
 use std::io::{self, BufRead, Write};
@@ -10,7 +9,7 @@ use se_runtime_core::capability_runner::CapabilityRunner;
 use se_runtime_core::embedding::MicrosoftFoundryEmbedder;
 use se_runtime_core::foundry_client::FoundryClient;
 
-use agent::Agent;
+use agents::Agent;
 use store::CapabilityStore;
 
 fn main() -> Result<()> {
@@ -74,7 +73,6 @@ fn main() -> Result<()> {
         );
         match agent.run_task(task, &caps_summary) {
             Ok(answer) => {
-                println!("\n[FINAL ANSWER]");
                 println!("{answer}\n");
             }
             Err(e) => {

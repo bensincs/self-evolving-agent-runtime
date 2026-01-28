@@ -1,5 +1,0 @@
-{
-  "id": "get_leave_balance",
-  "summary": "Returns employee leave balances including PTO, sick days, personal days, and upcoming time off requests.",
-  "binary": "../../target/wasm32-wasip1/release/get_leave_balance.wasm"
-}
