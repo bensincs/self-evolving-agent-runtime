@@ -1,0 +1,5 @@
+{
+  "id": "list_employees",
+  "summary": "List all employees with their ID, name, department, and job title",
+  "binary": "../../target/wasm32-wasip1/release/list_employees.wasm"
+}

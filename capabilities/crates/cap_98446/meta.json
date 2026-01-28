@@ -1,0 +1,5 @@
+{
+  "binary": "../../target/wasm32-wasip1/release/cap_98446.wasm",
+  "id": "cap_98446",
+  "summary": "Respond to the user with a friendly greeting such as 'Hello! How can I help you today?'"
+}

@@ -1,0 +1,5 @@
+{
+  "id": "get_employee_profile",
+  "summary": "Get employee profile information (name, department, job title, location) by employee ID",
+  "binary": "../../target/wasm32-wasip1/release/get_employee_profile.wasm"
+}

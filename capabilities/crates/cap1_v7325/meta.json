@@ -1,5 +1,0 @@
-{
-  "binary": "../../target/wasm32-wasip1/release/cap1_v7325.wasm",
-  "id": "cap1_v7325",
-  "summary": "New capability (pending implementation)"
-}

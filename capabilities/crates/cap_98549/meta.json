@@ -1,0 +1,5 @@
+{
+  "binary": "../../target/wasm32-wasip1/release/cap_98549.wasm",
+  "id": "cap_98549",
+  "summary": "Update an employee's salary information by employee ID, allowing changes to base salary and currency."
+}

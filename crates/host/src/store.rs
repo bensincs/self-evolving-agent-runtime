@@ -83,6 +83,11 @@ impl CapabilityStore {
         self.capabilities.iter().find(|c| c.id == id)
     }
 
+    /// Get all capabilities.
+    pub fn capabilities(&self) -> &[CapabilityRecord] {
+        &self.capabilities
+    }
+
     /// Number of loaded capabilities.
     pub fn len(&self) -> usize {
         self.capabilities.len()

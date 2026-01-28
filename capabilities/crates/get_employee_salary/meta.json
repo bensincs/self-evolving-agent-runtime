@@ -1,0 +1,5 @@
+{
+  "id": "get_employee_salary",
+  "summary": "Get employee salary information (base salary, currency, bonus, stock options, deductions) by employee ID",
+  "binary": "../../target/wasm32-wasip1/release/get_employee_salary.wasm"
+}
